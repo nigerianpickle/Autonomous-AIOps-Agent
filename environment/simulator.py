@@ -16,7 +16,7 @@ class ApplicationSimulator:
         self.latency += random.uniform(-5, 5)
         self.traffic += random.uniform(-20, 20)
 
-        # Keep values realistic
+        #Thresholds
         self.cpu = max(0, min(100, self.cpu))
         self.memory = max(0, min(100, self.memory))
         self.latency = max(50, self.latency)
