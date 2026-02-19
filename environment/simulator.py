@@ -35,7 +35,7 @@ class ApplicationSimulator:
     def apply_action(self, action):
         if action == "restart_service":
             self.error_rate *= 0.3
-            self.latency *= 0.8
+            self.latency *= 0.5
             self.active_fault = None
 
         elif action == "scale_up":
