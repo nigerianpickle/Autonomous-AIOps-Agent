@@ -52,7 +52,7 @@ class AIOpsAgent:
             if metric in self.mean:
                 z = (state[metric] - self.mean[metric]) / self.std[metric]
                 if z > self.z_threshold:
-                    anomalies[metric] = round(z, 2)
+                    anomalies[metric] = round(float(z), 2)
         return anomalies
 
     # ------------------------------------------------------------------ #
