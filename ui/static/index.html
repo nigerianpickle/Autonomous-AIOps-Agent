@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentOps-Lite · AIOps Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #080c10;
+    --bg2:       #0d1117;
+    --bg3:       #111820;
+    --border:    #1e2d3d;
+    --border2:   #243447;
+    --cyan:      #00d4ff;
+    --cyan-dim:  #00d4ff22;
+    --green:     #00ff88;
+    --green-dim: #00ff8818;
+    --yellow:    #ffcc00;
+    --red:       #ff4455;
+    --red-dim:   #ff445522;
+    --purple:    #a855f7;
+    --text:      #c9d1d9;
+    --text-dim:  #58677a;
+    --text-mid:  #8b97a6;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-ui:   'Space Grotesk', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Scanline overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .logo-mark {
+    width: 32px; height: 32px;
+    border: 2px solid var(--cyan);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .logo-mark::before {
+    content: '';
+    position: absolute;
+    width: 10px; height: 10px;
+    background: var(--cyan);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.6); }
+  }
+
+  .logo-text {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--cyan);
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    display: flex; align-items: center; gap: 24px;
+  }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  .status-dot.alert { background: var(--red); animation: blink-fast 0.5s ease-in-out infinite; }
+  .status-dot.warmup { background: var(--yellow); animation: blink 2s ease-in-out infinite; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  @keyframes blink-fast { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .step-counter {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .step-counter span { color: var(--cyan); font-weight: 700; }
+
+  .provider-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--purple);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 1px solid var(--purple);
+    padding: 3px 8px;
+  }
+
+  /* ── Progress bar ── */
+  .progress-bar-wrap {
+    height: 2px;
+    background: var(--border);
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+    transition: width 0.6s ease;
+    width: 0%;
+    box-shadow: 0 0 8px var(--cyan);
+  }
+
+  /* ── Layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    grid-template-rows: auto 1fr;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 61px);
+  }
+
+  .panel {
+    background: var(--bg2);
+    padding: 20px;
+  }
+
+  .panel-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Metric cards ── */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .metric-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 14px 12px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .metric-card.alert-card { border-color: var(--red); }
+  .metric-card.alert-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--red-dim);
+    animation: flash 1s ease-in-out infinite;
+  }
+  @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .metric-name {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .metric-value {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 10px;
+    transition: color 0.3s;
+  }
+  .metric-value.ok    { color: var(--green); }
+  .metric-value.warn  { color: var(--yellow); }
+  .metric-value.crit  { color: var(--red); }
+
+  .metric-bar-bg {
+    height: 3px;
+    background: var(--border);
+    border-radius: 0;
+  }
+  .metric-bar-fill {
+    height: 100%;
+    border-radius: 0;
+    transition: width 0.6s ease, background 0.3s;
+  }
+
+  .metric-unit {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 5px;
+  }
+
+  /* ── Charts area ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .chart-panel {
+    background: var(--bg2);
+    padding: 20px;
+  }
+
+  .chart-wrap {
+    position: relative;
+    height: 160px;
+  }
+
+  /* ── Right sidebar ── */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    grid-row: 1 / 3;
+    grid-column: 2;
+  }
+
+  /* ── Agent status ── */
+  .agent-status-panel {
+    background: var(--bg2);
+    padding: 20px;
+    flex-shrink: 0;
+  }
+
+  .incident-banner {
+    padding: 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    margin-bottom: 0;
+    transition: all 0.4s;
+  }
+  .incident-banner.active {
+    border-color: var(--red);
+    background: var(--red-dim);
+  }
+  .incident-banner.nominal {
+    border-color: var(--green);
+    background: var(--green-dim);
+  }
+
+  .incident-type {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--red);
+    margin-bottom: 6px;
+  }
+  .incident-type.nominal-text { color: var(--green); font-size: 14px; }
+  .incident-type.warmup-text { color: var(--yellow); font-size: 14px; }
+
+  .confidence-row {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 10px;
+  }
+  .confidence-pill {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    text-transform: uppercase;
+  }
+  .confidence-pill.high   { background: var(--red); color: #000; }
+  .confidence-pill.medium { background: var(--yellow); color: #000; }
+  .confidence-pill.low    { background: var(--text-dim); color: #000; }
+
+  .action-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--yellow);
+    letter-spacing: 0.1em;
+    border: 1px solid var(--yellow);
+    padding: 3px 8px;
+  }
+
+  /* ── LLM Feed ── */
+  .llm-feed-panel {
+    background: var(--bg2);
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .llm-feed {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .llm-message {
+    background: var(--bg3);
+    border-left: 3px solid var(--cyan);
+    padding: 12px 14px;
+    animation: slide-in 0.4s ease;
+  }
+  .llm-message.incident-msg { border-left-color: var(--red); }
+  .llm-message.action-msg   { border-left-color: var(--yellow); }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .llm-msg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .llm-msg-tag {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--cyan);
+  }
+  .llm-msg-tag.incident-tag { color: var(--red); }
+  .llm-msg-tag.action-tag   { color: var(--yellow); }
+
+  .llm-msg-step {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  .llm-msg-body {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-mid);
+  }
+
+  .llm-anomalies {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-top: 8px;
+  }
+  .anomaly-chip {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 2px 7px;
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    color: var(--red);
+  }
+
+  /* ── Incident timeline ── */
+  .timeline-panel {
+    background: var(--bg2);
+    padding: 20px;
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .timeline-item {
+    display: grid;
+    grid-template-columns: 48px 1px 1fr;
+    gap: 0 14px;
+    min-height: 52px;
+    animation: slide-in 0.3s ease;
+  }
+
+  .timeline-step {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: right;
+    padding-top: 4px;
+  }
+
+  .timeline-line {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .timeline-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin: 4px -3.5px;
+    flex-shrink: 0;
+  }
+  .timeline-dot.crash  { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .timeline-dot.spike  { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .timeline-dot.other  { background: var(--purple); box-shadow: 0 0 8px var(--purple); }
+
+  .timeline-track {
+    flex: 1;
+    width: 1px;
+    background: var(--border2);
+    margin: 0 auto;
+  }
+
+  .timeline-content {
+    padding: 2px 0 16px;
+  }
+  .timeline-incident {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+  .timeline-meta {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  /* ── Recovery chart special label ── */
+  .recovery-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+  .recovery-label span { color: var(--cyan); }
+
+  /* ── Empty states ── */
+  .empty {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 24px 0;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Fault alert bar ── */
+  #fault-bar {
+    display: none;
+    background: var(--red);
+    color: #000;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-align: center;
+    padding: 6px;
+    text-transform: uppercase;
+    animation: flash 0.4s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<div id="fault-bar">⚡ FAULT INJECTED: <span id="fault-name"></span></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div>
+      <div class="logo-text">AGENTOPS-LITE</div>
+      <div class="logo-sub">Autonomous AIOps Agent</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-badge">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">CONNECTING</span>
+    </div>
+    <div class="step-counter">STEP <span id="step-num">—</span> / <span id="step-total">—</span></div>
+    <div class="provider-tag" id="provider-tag">—</div>
+  </div>
+</header>
+
+<div class="progress-bar-wrap">
+  <div class="progress-bar-fill" id="progress-bar"></div>
+</div>
+
+<div class="main">
+
+  <!-- Top-left: metric cards + charts -->
+  <div style="background:var(--bg2); display:flex; flex-direction:column; gap:1px;">
+
+    <div class="panel">
+      <div class="panel-label">Live System Metrics</div>
+      <div class="metrics-grid" id="metrics-grid">
+        <!-- injected by JS -->
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-panel">
+        <div class="panel-label">CPU & Memory %</div>
+        <div class="chart-wrap"><canvas id="chart-cpu"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="panel-label">Latency (ms)</div>
+        <div class="chart-wrap"><canvas id="chart-latency"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="panel-label">Traffic (req/s)</div>
+        <div class="chart-wrap"><canvas id="chart-traffic"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="panel-label">Error Rate · Recovery Curves</div>
+        <div class="chart-wrap"><canvas id="chart-error"></canvas></div>
+        <div class="recovery-label">
+          <span>▲ fault injection</span>
+          <span id="recovery-stat">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom-left: incident timeline -->
+  <div class="panel timeline-panel" style="grid-row:2; grid-column:1;">
+    <div class="panel-label">Incident Timeline</div>
+    <div class="timeline" id="timeline">
+      <div class="empty" id="timeline-empty">Monitoring... no incidents yet</div>
+    </div>
+  </div>
+
+  <!-- Right sidebar -->
+  <div class="sidebar">
+
+    <div class="agent-status-panel">
+      <div class="panel-label">Agent Status</div>
+      <div class="incident-banner" id="incident-banner">
+        <div class="incident-type warmup-text" id="incident-type">WARMING UP</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-top:4px;" id="incident-sub">Building baseline model...</div>
+      </div>
+    </div>
+
+    <div class="llm-feed-panel">
+      <div class="panel-label">LLM Reasoning Feed</div>
+      <div class="llm-feed" id="llm-feed">
+        <div class="empty" id="feed-empty">Waiting for first anomaly...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ================================================================ //
+//  State                                                           //
+// ================================================================ //
+const MAX_POINTS = 40;
+let totalSteps   = 0;
+let incidentCount = 0;
+let recoverySteps = [];
+
+const history = {
+  labels:    [],
+  cpu:       [], memory:    [],
+  latency:   [], traffic:   [],
+  error:     [],
+  faults:    [],   // step indices where faults were injected
+  actions:   [],   // step indices where actions were taken
+};
+
+// ================================================================ //
+//  Chart setup                                                     //
+// ================================================================ //
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 300 },
+  plugins: { legend: { display: false } },
+  scales: {
+    x: {
+      ticks: { color: '#58677a', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 8 },
+      grid:  { color: '#1e2d3d' },
+    },
+    y: {
+      ticks: { color: '#58677a', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 5 },
+      grid:  { color: '#1e2d3d' },
+    }
+  }
+};
+
+function makeChart(id, datasets, yMax) {
+  const ctx = document.getElementById(id).getContext('2d');
+  const opts = JSON.parse(JSON.stringify(chartDefaults));
+  if (yMax) opts.scales.y.max = yMax;
+  return new Chart(ctx, { type: 'line', data: { labels: [], datasets }, options: opts });
+}
+
+const lineStyle = (color, fill=false) => ({
+  borderColor: color,
+  backgroundColor: fill ? color + '18' : 'transparent',
+  borderWidth: 1.5,
+  pointRadius: 0,
+  tension: 0.4,
+  fill: fill,
+});
+
+const chartCpu = makeChart('chart-cpu', [
+  { label: 'CPU',    data: [], ...lineStyle('#00d4ff', true) },
+  { label: 'Memory', data: [], ...lineStyle('#a855f7') },
+], 100);
+
+const chartLatency = makeChart('chart-latency', [
+  { label: 'Latency', data: [], ...lineStyle('#ffcc00', true) },
+]);
+
+const chartTraffic = makeChart('chart-traffic', [
+  { label: 'Traffic', data: [], ...lineStyle('#00ff88', true) },
+]);
+
+const chartError = makeChart('chart-error', [
+  { label: 'Error Rate', data: [], ...lineStyle('#ff4455', true) },
+]);
+
+// Annotation points for fault injections & actions (drawn as scatter)
+const faultScatter  = { label: 'Fault',  data: [], ...lineStyle('#ff4455'), pointRadius: 6, pointStyle: 'triangle', showLine: false };
+const actionScatter = { label: 'Action', data: [], ...lineStyle('#ffcc00'), pointRadius: 5, pointStyle: 'rectRot',  showLine: false };
+chartError.data.datasets.push(faultScatter, actionScatter);
+
+function pushToChart(chart, step, values, faultY=null, actionY=null) {
+  const label = `S${step}`;
+  if (chart.data.labels.length >= MAX_POINTS) {
+    chart.data.labels.shift();
+    chart.data.datasets.forEach(ds => ds.data.shift());
+  }
+  chart.data.labels.push(label);
+  values.forEach((v, i) => chart.data.datasets[i].data.push(v));
+
+  // fault/action markers on error chart
+  if (chart === chartError) {
+    chart.data.datasets[1].data[chart.data.datasets[1].data.length - 1] = faultY;
+    chart.data.datasets[2].data[chart.data.datasets[2].data.length - 1] = actionY;
+  }
+  chart.update('none');
+}
+
+// ================================================================ //
+//  Metric cards                                                    //
+// ================================================================ //
+const METRICS_CONFIG = [
+  { key: 'cpu',        label: 'CPU',        unit: '%',    max: 100, warn: 70, crit: 90  },
+  { key: 'memory',     label: 'Memory',     unit: '%',    max: 100, warn: 75, crit: 90  },
+  { key: 'latency',    label: 'Latency',    unit: 'ms',   max: 600, warn: 200, crit: 400 },
+  { key: 'error_rate', label: 'Error Rate', unit: '',     max: 0.5, warn: 0.05, crit: 0.15 },
+  { key: 'traffic',    label: 'Traffic',    unit: 'req/s',max: 2000,warn: 800, crit: 1400 },
+];
+
+function initMetricCards() {
+  const grid = document.getElementById('metrics-grid');
+  grid.innerHTML = METRICS_CONFIG.map(m => `
+    <div class="metric-card" id="card-${m.key}">
+      <div class="metric-name">${m.label}</div>
+      <div class="metric-value" id="val-${m.key}">—</div>
+      <div class="metric-bar-bg">
+        <div class="metric-bar-fill" id="bar-${m.key}" style="width:0%; background:var(--cyan)"></div>
+      </div>
+      <div class="metric-unit">${m.unit}</div>
+    </div>
+  `).join('');
+}
+
+function updateMetricCards(state, anomalies) {
+  METRICS_CONFIG.forEach(m => {
+    const val  = state[m.key];
+    if (val === undefined) return;
+    const pct  = Math.min(100, (val / m.max) * 100);
+    const isAlert = anomalies && anomalies[m.key];
+
+    let level = 'ok', barColor = '#00d4ff';
+    if (val >= m.crit) { level = 'crit'; barColor = '#ff4455'; }
+    else if (val >= m.warn) { level = 'warn'; barColor = '#ffcc00'; }
+
+    document.getElementById(`val-${m.key}`).textContent =
+      m.key === 'error_rate' ? val.toFixed(4) :
+      m.key === 'latency'    ? Math.round(val) :
+      typeof val === 'number' ? val.toFixed(1) : val;
+
+    document.getElementById(`val-${m.key}`).className = `metric-value ${level}`;
+    document.getElementById(`bar-${m.key}`).style.width  = pct + '%';
+    document.getElementById(`bar-${m.key}`).style.background = barColor;
+    document.getElementById(`card-${m.key}`).className = `metric-card${isAlert ? ' alert-card' : ''}`;
+  });
+}
+
+// ================================================================ //
+//  Status header                                                   //
+// ================================================================ //
+function setStatus(phase, status, incidentType) {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  const banner = document.getElementById('incident-banner');
+  const typeEl = document.getElementById('incident-type');
+  const subEl  = document.getElementById('incident-sub');
+
+  dot.className = 'status-dot';
+  banner.className = 'incident-banner';
+  typeEl.className = 'incident-type';
+
+  if (phase === 'warmup') {
+    dot.classList.add('warmup');
+    text.textContent = 'WARMUP';
+    typeEl.classList.add('warmup-text');
+    typeEl.textContent = 'BUILDING BASELINE';
+    subEl.textContent  = 'Statistical model learning...';
+
+  } else if (status === 'nominal') {
+    text.textContent = 'NOMINAL';
+    banner.classList.add('nominal');
+    typeEl.classList.add('nominal-text');
+    typeEl.textContent = '✓  ALL SYSTEMS NOMINAL';
+    subEl.textContent  = 'No anomalies detected';
+
+  } else if (status === 'anomaly_detected') {
+    dot.classList.add('alert');
+    text.textContent = 'INCIDENT';
+    banner.classList.add('active');
+    typeEl.style.color = 'var(--red)';
+    typeEl.textContent = (incidentType || 'UNKNOWN').toUpperCase().replace('_', ' ');
+
+    const conf   = window._lastReport?.confidence || '';
+    const action = window._lastReport?.action || '';
+    subEl.innerHTML = `
+      <div class="confidence-row" style="margin-top:8px">
+        <span class="confidence-pill ${conf}">${conf}</span>
+        <span class="action-tag">${action}</span>
+      </div>`;
+  }
+}
+
+// ================================================================ //
+//  LLM Feed                                                        //
+// ================================================================ //
+function addLLMMessage(step, report) {
+  const feed  = document.getElementById('llm-feed');
+  const empty = document.getElementById('feed-empty');
+  if (empty) empty.remove();
+
+  const status = report.status;
+  if (status !== 'anomaly_detected') return;
+
+  const anomalies = report.anomalies || {};
+  const chips = Object.entries(anomalies)
+    .map(([k,v]) => `<div class="anomaly-chip">${k} ${v}σ</div>`)
+    .join('');
+
+  const msg = document.createElement('div');
+  msg.className = `llm-message ${status === 'anomaly_detected' ? 'incident-msg' : ''}`;
+  msg.innerHTML = `
+    <div class="llm-msg-header">
+      <span class="llm-msg-tag incident-tag">⚠ ${(report.incident_type||'').toUpperCase().replace('_',' ')}</span>
+      <span class="llm-msg-step">step ${step}</span>
+    </div>
+    <div class="llm-msg-body">${report.reasoning || ''}</div>
+    <div class="llm-anomalies">${chips}</div>
+    <div style="margin-top:8px; font-family:var(--font-mono); font-size:10px; color:var(--yellow)">
+      → ${report.action_reasoning || report.action || ''}
+    </div>
+  `;
+
+  feed.appendChild(msg);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+// ================================================================ //
+//  Timeline                                                        //
+// ================================================================ //
+function addTimelineItem(step, report) {
+  if (report.status !== 'anomaly_detected') return;
+
+  const timeline = document.getElementById('timeline');
+  const empty    = document.getElementById('timeline-empty');
+  if (empty) empty.remove();
+
+  const type  = report.incident_type || 'unknown';
+  const dotCls = type.includes('crash') ? 'crash' : type.includes('spike') ? 'spike' : 'other';
+  const color  = dotCls === 'crash' ? 'var(--red)' : dotCls === 'spike' ? 'var(--yellow)' : 'var(--purple)';
+
+  const anomalyStr = Object.entries(report.anomalies || {})
+    .map(([k,v]) => `${k}=${v}σ`).join(' · ');
+
+  const item = document.createElement('div');
+  item.className = 'timeline-item';
+  item.innerHTML = `
+    <div class="timeline-step">S${step}</div>
+    <div class="timeline-line">
+      <div class="timeline-dot ${dotCls}"></div>
+      <div class="timeline-track"></div>
+    </div>
+    <div class="timeline-content">
+      <div class="timeline-incident" style="color:${color}">${type.replace(/_/g,' ').toUpperCase()}</div>
+      <div class="timeline-meta">${report.action} · ${report.confidence} confidence · ${anomalyStr}</div>
+    </div>
+  `;
+
+  timeline.insertBefore(item, timeline.firstChild);
+}
+
+// ================================================================ //
+//  Fault bar                                                       //
+// ================================================================ //
+let faultBarTimer = null;
+function showFaultBar(faultType) {
+  const bar = document.getElementById('fault-bar');
+  document.getElementById('fault-name').textContent = faultType.replace(/_/g,' ').toUpperCase();
+  bar.style.display = 'block';
+  clearTimeout(faultBarTimer);
+  faultBarTimer = setTimeout(() => { bar.style.display = 'none'; }, 3000);
+}
+
+// ================================================================ //
+//  Event processing                                               //
+// ================================================================ //
+function processEvent(payload) {
+  const { type, data } = payload;
+
+  if (type === 'meta') {
+    totalSteps = data.total_steps;
+    document.getElementById('step-total').textContent = totalSteps;
+    document.getElementById('provider-tag').textContent = data.provider;
+    return;
+  }
+
+  if (type === 'fault') {
+    showFaultBar(data.fault_type);
+    return;
+  }
+
+  if (type === 'step') {
+    const { step, state, report, action } = data;
+    window._lastReport = report;
+
+    document.getElementById('step-num').textContent = step;
+    const pct = totalSteps ? (step / totalSteps * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+
+    // Metric cards
+    updateMetricCards(state, report.anomalies);
+
+    // Charts
+    const isFault  = state.fault ? state.error_rate : null;
+    const isAction = action !== 'do_nothing' ? state.error_rate : null;
+
+    pushToChart(chartCpu,     step, [state.cpu, state.memory]);
+    pushToChart(chartLatency, step, [state.latency]);
+    pushToChart(chartTraffic, step, [state.traffic]);
+    pushToChart(chartError,   step, [state.error_rate], isFault, isAction);
+
+    // Status + sidebar
+    setStatus(report.phase, report.status, report.incident_type);
+    addLLMMessage(step, report);
+    addTimelineItem(step, report);
+
+    // Recovery stat
+    if (report.status === 'anomaly_detected') incidentCount++;
+    const rLabel = incidentCount > 0
+      ? `${incidentCount} incidents detected`
+      : 'no incidents';
+    document.getElementById('recovery-stat').textContent = rLabel;
+  }
+}
+
+// ================================================================ //
+//  SSE connection                                                  //
+// ================================================================ //
+initMetricCards();
+
+const evtSource = new EventSource('/stream');
+evtSource.onmessage = e => {
+  try { processEvent(JSON.parse(e.data)); }
+  catch(err) { console.warn('Parse error', err); }
+};
+evtSource.onerror = () => {
+  document.getElementById('status-text').textContent = 'RECONNECTING';
+};
+</script>
+</body>
+</html>

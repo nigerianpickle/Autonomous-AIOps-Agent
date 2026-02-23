@@ -1,6 +1,7 @@
 # Core
 numpy>=1.24.0
 rich>=13.0.0
+flask>=3.0.0
 
 # LLM Providers — install only what you need
 anthropic>=0.25.0   # for Anthropic / Claude
