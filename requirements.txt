@@ -1,0 +1,7 @@
+# Core
+numpy>=1.24.0
+
+# LLM Providers — install only what you need
+anthropic>=0.25.0   # for Anthropic / Claude
+openai>=1.0.0       # for OpenAI / GPT-4o
+requests>=2.31.0    # for Ollama (local)
