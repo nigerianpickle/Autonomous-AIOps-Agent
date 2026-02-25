@@ -16,11 +16,28 @@ class AIOpsAgent:
     METRICS = ["cpu", "latency", "error_rate", "traffic", "memory"]
 
     def __init__(self, llm_provider, warmup_steps=10, window_size=30, z_threshold=2.0):
+        """
+        Initializes the AIOps agent.
+
+        Parameters:
+            llm_provider  : The LLM backend to use for diagnosis (Anthropic, OpenAI, or Ollama).
+            warmup_steps  : Number of steps the agent observes before making any decisions.
+                            During this phase it collects data to build an initial baseline.
+                            Default is 10.
+            window_size   : How many recent steps to include when computing the rolling baseline.
+                            Older observations beyond this window are discarded automatically.
+                            Default is 30.
+            z_threshold   : How many standard deviations above the baseline mean a metric must
+                            reach before it is flagged as anomalous. Based on the statistical
+                            property that 95% of normal values fall within 2 standard deviations.
+                            Default is 2.0.
+        """
         self.llm           = llm_provider
         self.warmup_steps  = warmup_steps
         self.window_size   = window_size
         self.z_threshold   = z_threshold
 
+        #Create a queue for each metric
         self.windows        = {m: deque(maxlen=window_size) for m in self.METRICS}
         self.step_count     = 0
         self.baseline_ready = False
@@ -30,11 +47,20 @@ class AIOpsAgent:
         self.recent_states  = deque(maxlen=5)
         self.incident_log   = []
 
-    # ------------------------------------------------------------------ #
-    #  Baseline                                                            #
-    # ------------------------------------------------------------------ #
 
     def _update_baseline(self):
+        """
+        Recomputes the rolling mean and standard deviation for each metric
+        using the current observation window.
+
+        Called every step after warmup. Because the window has a fixed max size,
+        older observations automatically drop off as new ones come in, keeping
+        the baseline representative of recent system behaviour rather than
+        the entire run history.
+
+        A small epsilon (1e-6) is added to std to prevent division by zero
+        in cases where a metric is temporarily perfectly flat.
+        """
         for metric in self.METRICS:
             if len(self.windows[metric]) >= 2:
                 values = list(self.windows[metric])
