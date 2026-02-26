@@ -56,9 +56,7 @@ class ApplicationSimulator:
         # CPU decays toward 40% baseline
         self.cpu        = self.cpu        * self._fault_decay_rate + 40.0  * (1 - self._fault_decay_rate)
 
-    # ------------------------------------------------------------------ #
-    #  State                                                               #
-    # ------------------------------------------------------------------ #
+    #  State                                                               
 
     def get_state(self):
         return {
@@ -70,10 +68,7 @@ class ApplicationSimulator:
             "fault":      self.active_fault,
         }
 
-    # ------------------------------------------------------------------ #
-    #  Actions                                                             #
-    # ------------------------------------------------------------------ #
-
+    #  Actions                                                             
     def apply_action(self, action):
         """
         Apply a remediation action. Actions provide faster recovery than
@@ -98,10 +93,7 @@ class ApplicationSimulator:
         elif action == "do_nothing":
             pass
 
-    # ------------------------------------------------------------------ #
-    #  Fault injection (called by faults.py)                              #
-    # ------------------------------------------------------------------ #
-
+    #  Fault injection (called by faults.py)                              
     def inject(self, fault_type, duration=5):
         """Apply a fault with a set duration (steps)."""
         self.active_fault = fault_type

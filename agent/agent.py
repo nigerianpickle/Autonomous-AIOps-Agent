@@ -74,6 +74,16 @@ class AIOpsAgent:
     
     #  Anomaly Detection                                                   
     def _detect_anomalies(self, state):
+        """
+        Compares each metric in the current state against the learned baseline
+        using a z-score calculation: z = (value - mean) / std.
+
+        Any metric whose z-score exceeds the threshold is considered anomalous
+        and included in the returned dictionary with its z-score as the value.
+
+        Returns an empty dict if all metrics are within normal range.
+        Only runs after the baseline is ready.
+        """
         anomalies = {}
         for metric in self.METRICS:
             if metric in self.mean:
@@ -84,11 +94,20 @@ class AIOpsAgent:
                     anomalies[metric] = round(float(z), 2)
         return anomalies
 
-    # ------------------------------------------------------------------ #
     #  LLM Diagnosis                                                       #
-    # ------------------------------------------------------------------ #
-
     def _build_prompt(self, state, anomalies):
+        """
+    Constructs the prompt sent to the LLM for incident diagnosis.
+
+    Provides the model with full context including: current metric values,
+    which metrics are anomalous and by how many standard deviations,
+    the learned baseline (mean and std per metric), and a short history
+    of recent system states.
+
+    The output format is constrained to a strict JSON schema with a fixed
+    set of valid incident types and actions, ensuring the response can be
+    parsed programmatically without ambiguity.
+    """
         history_lines = [
             f"  t-{len(self.recent_states)-i}: cpu={s['cpu']}% | "
             f"latency={s['latency']}ms | error_rate={s['error_rate']} | "
@@ -134,6 +153,15 @@ Respond ONLY with valid JSON in this exact format:
 }}"""
 
     def _diagnose_with_llm(self, state, anomalies):
+        """
+        Sends the constructed prompt to the configured LLM provider and
+        parses the structured JSON response.
+
+        Handles cases where the model wraps its output in markdown code fences
+        by stripping them before parsing. Returns a dict containing the
+        incident type, confidence level, reasoning, chosen action, and
+        action justification.
+        """
         prompt = self._build_prompt(state, anomalies)
         raw    = self.llm.diagnose(prompt)
 
@@ -145,15 +173,31 @@ Respond ONLY with valid JSON in this exact format:
 
         return json.loads(raw.strip())
 
-    # ------------------------------------------------------------------ #
-    #  Main entry point                                                    #
-    # ------------------------------------------------------------------ #
 
+    #  Main entry point                                                    
     def get_action(self, state):
+        """
+        Main entry point called by the orchestrator on every simulation step.
+
+        Implements a two-layer decision pipeline:
+        1. Statistical layer  — fast z-score anomaly detection runs every step.
+        2. LLM layer          — only invoked when the statistical layer confirms
+                                an anomaly, keeping API usage efficient.
+
+        During warmup, always returns 'do_nothing' while the baseline is built.
+        If the LLM call fails for any reason, falls back to a simple rule-based
+        action to ensure the system never crashes on an API error.
+
+        Returns:
+            action (str)  : One of 'restart_service', 'scale_up', or 'do_nothing'.
+            report (dict) : Full diagnosis including anomalies, incident type,
+                            confidence, reasoning, and action justification.
+        """
         self.step_count += 1
 
         for metric in self.METRICS:
             if metric in state:
+                #Update the rolling window for this metric with the current value
                 self.windows[metric].append(state[metric])
 
         self.recent_states.append(state)

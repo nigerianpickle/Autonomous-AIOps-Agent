@@ -11,11 +11,7 @@ All providers expose the same interface:
 import os
 import getpass
 
-
-# ------------------------------------------------------------------ #
-#  Base                                                               #
-# ------------------------------------------------------------------ #
-
+#  Base                                                               
 class LLMProvider:
     name = "base"
 
