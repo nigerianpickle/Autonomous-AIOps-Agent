@@ -71,14 +71,14 @@ class AIOpsAgent:
                 self.std[metric]  = np.std(values) + 1e-6 #suggested by ai
         self.baseline_ready = True
 
-    # ------------------------------------------------------------------ #
-    #  Anomaly Detection                                                   #
-    # ------------------------------------------------------------------ #
-
+    
+    #  Anomaly Detection                                                   
     def _detect_anomalies(self, state):
         anomalies = {}
         for metric in self.METRICS:
             if metric in self.mean:
+                #Calculate z score
+                #would make sense if this was a function def _calculateScore(metric)
                 z = (state[metric] - self.mean[metric]) / self.std[metric]
                 if z > self.z_threshold:
                     anomalies[metric] = round(float(z), 2)
