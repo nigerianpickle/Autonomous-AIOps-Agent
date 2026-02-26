@@ -4,12 +4,6 @@ import random
 class ApplicationSimulator:
     """
     Simulates a running application's telemetry.
-
-    Improvements over v1:
-    - Natural recovery: fault effects decay over time even without agent action
-    - Fault duration tracking: faults don't linger forever unrealistically
-    - Memory pressure can cause latency degradation (metric correlation)
-    - Configurable base values for easier experimentation
     """
 
     def __init__(self):
@@ -24,10 +18,7 @@ class ApplicationSimulator:
         self._fault_duration = 0          # steps remaining for current fault
         self._fault_decay_rate = 0.85     # how fast fault effects naturally decay
 
-    # ------------------------------------------------------------------ #
     #  Step                                                                #
-    # ------------------------------------------------------------------ #
-
     def step(self):
         """Advance simulation by one time step."""
 

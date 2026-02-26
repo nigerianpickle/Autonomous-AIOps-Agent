@@ -61,11 +61,14 @@ class AIOpsAgent:
         A small epsilon (1e-6) is added to std to prevent division by zero
         in cases where a metric is temporarily perfectly flat.
         """
+
+
+        #Update mean and std for each metric
         for metric in self.METRICS:
             if len(self.windows[metric]) >= 2:
                 values = list(self.windows[metric])
                 self.mean[metric] = np.mean(values)
-                self.std[metric]  = np.std(values) + 1e-6
+                self.std[metric]  = np.std(values) + 1e-6 #suggested by ai
         self.baseline_ready = True
 
     # ------------------------------------------------------------------ #
@@ -74,7 +77,7 @@ class AIOpsAgent:
 
     def _detect_anomalies(self, state):
         anomalies = {}
-        for metric in ["cpu", "latency", "error_rate", "traffic"]:
+        for metric in self.METRICS:
             if metric in self.mean:
                 z = (state[metric] - self.mean[metric]) / self.std[metric]
                 if z > self.z_threshold:
