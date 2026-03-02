@@ -19,9 +19,7 @@ class LLMProvider:
         raise NotImplementedError
 
 
-# ------------------------------------------------------------------ #
-#  Anthropic                                                          #
-# ------------------------------------------------------------------ #
+#  Anthropic                                                          
 
 class AnthropicProvider(LLMProvider):
     name = "Anthropic (Claude)"
@@ -48,10 +46,7 @@ class AnthropicProvider(LLMProvider):
         return response.content[0].text.strip()
 
 
-# ------------------------------------------------------------------ #
-#  OpenAI                                                             #
-# ------------------------------------------------------------------ #
-
+#  OpenAI                                                             
 class OpenAIProvider(LLMProvider):
     name = "OpenAI (GPT-4o)"
 
@@ -77,9 +72,7 @@ class OpenAIProvider(LLMProvider):
         return response.choices[0].message.content.strip()
 
 
-# ------------------------------------------------------------------ #
-#  Ollama (local)                                                     #
-# ------------------------------------------------------------------ #
+#  Ollama (local)                                                     
 
 class OllamaProvider(LLMProvider):
     name = "Ollama (local)"
@@ -113,9 +106,7 @@ class OllamaProvider(LLMProvider):
         return response.json()["response"].strip()
 
 
-# ------------------------------------------------------------------ #
-#  Provider registry                                                  #
-# ------------------------------------------------------------------ #
+#  Provider registry                                                  
 
 PROVIDERS = {
     "1": {
@@ -142,9 +133,7 @@ PROVIDERS = {
 }
 
 
-# ------------------------------------------------------------------ #
-#  Helpers                                                            #
-# ------------------------------------------------------------------ #
+#  Helpers                                                            
 
 def _divider():
     print("  " + "─" * 46)
@@ -158,10 +147,7 @@ def _check_env_var(env_var: str) -> str | None:
     return None
 
 
-# ------------------------------------------------------------------ #
-#  Main selector                                                      #
-# ------------------------------------------------------------------ #
-
+#  Main selector                                                      
 def select_provider() -> LLMProvider:
     """
     Interactive CLI startup menu.
