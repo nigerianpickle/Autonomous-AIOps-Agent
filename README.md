@@ -78,7 +78,7 @@ terminal UI
 
 # 4. AI Techniques & Intelligent Logic
 
-## Layer 1: Unsupervised Anomaly Detection
+## Layer 1:Unsupervised Anomaly Detection
 
 Each metric maintains a rolling window:
 
