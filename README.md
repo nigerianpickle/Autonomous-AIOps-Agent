@@ -40,9 +40,9 @@ Traditional monitoring systems rely on static thresholds:
 
 This approach is:
 
--   Hardcoded and brittle\
--   Context-blind across applications\
--   Noisy (high false positives)\
+-   Hardcoded and brittle
+-   Context-blind across applications
+-   Noisy (high false positives)
 -   Unable to detect gradual degradation
 
 Modern cloud systems are dynamic. "Normal" behavior changes over time.
