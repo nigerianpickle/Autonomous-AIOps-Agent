@@ -40,9 +40,9 @@ Traditional monitoring systems rely on static thresholds:
 
 This approach is:
 
--   Hardcoded and brittle\
--   Context-blind across applications\
--   Noisy (high false positives)\
+-   Hardcoded and brittle
+-   Context-blind across applications
+-   Noisy (high false positives)
 -   Unable to detect gradual degradation
 
 Modern cloud systems are dynamic. "Normal" behavior changes over time.
@@ -78,7 +78,7 @@ terminal UI
 
 # 4. AI Techniques & Intelligent Logic
 
-## Layer 1 --- Unsupervised Anomaly Detection
+## Layer 1: Unsupervised Anomaly Detection
 
 Each metric maintains a rolling window:
 
@@ -103,11 +103,10 @@ If:
 -   Online learning (baseline evolves every step)
 -   Works for any metric without tuning
 
-This is unsupervised ML --- no labeled data required.
 
 ------------------------------------------------------------------------
 
-## Layer 2 --- LLM-Powered Diagnosis
+## Layer 2: LLM-Powered Diagnosis
 
 The LLM is only invoked when Layer 1 confirms an anomaly.
 
@@ -158,9 +157,9 @@ Metrics: - CPU - Memory - Latency - Error Rate - Traffic
 
 Fault Injection (12% probability per step):
 
--   traffic_spike\
--   service_crash\
--   memory_leak
+-   traffic_spike
+-   service_crash
+-   memory_leak(Future addition)
 
 Remediation actions:
 
@@ -209,6 +208,7 @@ The browser opens automatically at:
 Future improvements may include:
 
 -   Reinforcement learning policy layer
+-   More faults
 -   Multi-agent coordination
 -   Kubernetes integration
 -   Persistent baseline storage
