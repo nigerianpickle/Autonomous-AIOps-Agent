@@ -32,7 +32,7 @@ class Orchestrator:
     """
     Runs the simulation loop and outputs to BOTH:
       - Rich scrolling terminal (full detail every step)
-      - Web dashboard via SSE (browser updates live)
+      - Web dashboard  (browser updates live)
     """
 
     def __init__(self, env, agent, total_steps=50, step_delay=1.5):
