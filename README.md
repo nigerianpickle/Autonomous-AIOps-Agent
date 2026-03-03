@@ -74,6 +74,7 @@ logs
 dashboard - LLM reasoning feed - Incident timeline - Simultaneous rich
 terminal UI
 
+![Architecture](./images/Architecture.png)
 
 ------------------------------------------------------------------------
 
@@ -220,7 +221,7 @@ Future improvements may include:
 
 # 9. Video Walkthrough
 
-The repository includes a 5-10 minute video walkthrough explaining:
+The repository includes a 5--10 minute video walkthrough explaining:
 
 -   Architecture design decisions
 -   AI concepts incorporated
