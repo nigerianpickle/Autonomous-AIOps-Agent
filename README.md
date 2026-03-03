@@ -219,7 +219,7 @@ Future improvements may include:
 
 # 9. Video Walkthrough
 
-The repository includes a 5--10 minute video walkthrough explaining:
+The repository includes a 5-10 minute video walkthrough explaining:
 
 -   Architecture design decisions
 -   AI concepts incorporated
